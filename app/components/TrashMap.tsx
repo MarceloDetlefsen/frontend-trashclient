@@ -23,7 +23,8 @@ interface TrashMapProps {
   records: TrashRecord[];
 }
 
-const GUATEMALA_CENTER: [number, number] = [-90.23, 15.78];
+/** Guatemala: 15°42′N, 90°30′W = [longitude, latitude] for MapLibre */
+const GUATEMALA_CENTER: [number, number] = [-90.5, 15.7];
 
 export default function TrashMap({ records }: TrashMapProps) {
   const validRecords = records
@@ -58,6 +59,7 @@ export default function TrashMap({ records }: TrashMapProps) {
         className="rounded-xl"
         theme="light"
         viewport={{ center, zoom }}
+        onViewportChange={() => {}}
       >
         <MapControls showZoom showLocate position="bottom-right" />
         {validRecords.map((record) => {

@@ -55,7 +55,7 @@ export async function analyzeImageForTrash(
     },
     body: JSON.stringify({
       model: MODEL,
-      max_tokens: 512,
+      max_tokens: 256,
       messages: [
         {
           role: 'system',
