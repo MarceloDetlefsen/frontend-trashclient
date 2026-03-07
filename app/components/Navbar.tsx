@@ -45,7 +45,7 @@ export default function Navbar() {
               </svg>
             </div>
             <span className="font-semibold text-slate-900 text-lg tracking-tight">
-              TrashClient
+              EcoScan
             </span>
           </Link>
 

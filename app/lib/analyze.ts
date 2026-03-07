@@ -3,27 +3,8 @@ import type { TrashAnalysis } from './types';
 const OPENROUTER_URL = 'https://openrouter.ai/api/v1/chat/completions';
 const MODEL = 'anthropic/claude-3.5-sonnet';
 
-const SYSTEM_PROMPT = `You are a waste detection system. Analyze the image and estimate the composition of visible trash.
-
-Include standard recyclables (glass, plastic, paper, organic, metal), plus:
-- e-waste: electronics, batteries, cables
-- hazardous: chemicals, paint, medical, sharp objects
-- special treatment: items that need dedicated collection (e.g. tires, mattresses, large appliances)
-
-Respond with a single JSON object only, no markdown or extra text. Use this exact shape (percentages must sum to 100):
-{
-  "glassPercentage": number,
-  "plasticPercentage": number,
-  "paperPercentage": number,
-  "organicPercentage": number,
-  "metalPercentage": number,
-  "otherPercentage": number,
-  "eWastePercentage": number,
-  "hazardousPercentage": number,
-  "specialTreatmentPercentage": number,
-  "description": "short description of what you see",
-  "suggestedCleanup": "brief recommendation to clean this area"
-}`;
+const SYSTEM_PROMPT = `Analyze trash in image. JSON only, percentages sum to 100. Use "" for description and suggestedCleanup if needed:
+{"glassPercentage":0,"plasticPercentage":0,"paperPercentage":0,"organicPercentage":0,"metalPercentage":0,"otherPercentage":0,"eWastePercentage":0,"hazardousPercentage":0,"specialTreatmentPercentage":0,"description":"","suggestedCleanup":""}`;
 
 const PERCENTAGE_KEYS: (keyof TrashAnalysis)[] = [
   'glassPercentage',
@@ -55,7 +36,7 @@ export async function analyzeImageForTrash(
     },
     body: JSON.stringify({
       model: MODEL,
-      max_tokens: 256,
+      max_tokens: 122,
       messages: [
         {
           role: 'system',
@@ -66,11 +47,11 @@ export async function analyzeImageForTrash(
           content: [
             {
               type: 'text',
-              text: 'Analyze the trash in this image and respond with the JSON object only.',
+              text: 'Analyze.',
             },
             {
               type: 'image_url',
-              image_url: { url: dataUri },
+              image_url: { url: dataUri, detail: 'low' as const },
             },
           ],
         },
@@ -91,7 +72,36 @@ export async function analyzeImageForTrash(
     .replace(/^```json\s*/i, '')
     .replace(/\s*```\s*$/i, '')
     .trim();
-  const parsed = JSON.parse(cleaned) as TrashAnalysis;
+
+  let parsed: TrashAnalysis;
+  try {
+    parsed = JSON.parse(cleaned) as TrashAnalysis;
+  } catch {
+    // Truncated response - try to repair or extract percentages
+    let repaired = cleaned;
+    if ((repaired.match(/"/g) ?? []).length % 2 === 1) repaired += '"';
+    const open = (repaired.match(/\{/g) ?? []).length - (repaired.match(/\}/g) ?? []).length;
+    if (open > 0) repaired += '}'.repeat(open);
+    try {
+      parsed = JSON.parse(repaired) as TrashAnalysis;
+    } catch {
+      // Fallback: extract percentages with regex
+      const extracted: Record<string, number> = {};
+      for (const key of PERCENTAGE_KEYS) {
+        const m = cleaned.match(new RegExp(`"${key}"\\s*:\\s*(\\d+)`));
+        extracted[key] = m ? Number(m[1]) : 0;
+      }
+      const sum = Object.values(extracted).reduce((a, b) => a + b, 0);
+      if (sum === 0) {
+        throw new Error(`Invalid JSON from model (possibly truncated): ${cleaned.slice(0, 200)}...`);
+      }
+      parsed = {
+        ...extracted,
+        description: '',
+        suggestedCleanup: '',
+      } as TrashAnalysis;
+    }
+  }
 
   const raw: Record<string, number> = {};
   let sum = 0;

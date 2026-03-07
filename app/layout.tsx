@@ -9,7 +9,7 @@ const geistSans = Geist({
 });
 
 export const metadata: Metadata = {
-  title: "TrashClient – Waste Detection Dashboard",
+  title: "EcoScan – Waste Detection Dashboard",
   description:
     "AI-powered waste detection and geographic tracking for smarter collection.",
 };
