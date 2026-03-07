@@ -10,6 +10,15 @@ import {
 import type { TrashRecord } from '@/app/lib/types';
 import { getDominantWaste, WASTE_TYPES, formatDate, formatCoord } from '@/app/lib/utils';
 
+/** Top N waste types by value for compact popup display */
+function getTopWastes(record: TrashRecord, n = 5) {
+  return WASTE_TYPES
+    .map((t) => ({ ...t, val: record[t.key] ?? 0 }))
+    .filter((x) => x.val > 0)
+    .sort((a, b) => b.val - a.val)
+    .slice(0, n);
+}
+
 interface TrashMapProps {
   records: TrashRecord[];
 }
@@ -65,43 +74,36 @@ export default function TrashMap({ records }: TrashMapProps) {
                 style={{ backgroundColor: dominant.color }}
               />
             </MarkerContent>
-            <MarkerPopup closeButton anchor="bottom">
-              <div className="min-w-[200px] font-sans text-[13px]">
-                <div className="mb-2 flex items-center gap-1.5">
+            <MarkerPopup closeButton anchor="bottom" className="max-w-[200px]">
+              <div className="w-full max-w-[180px] font-sans text-[12px]">
+                <div className="mb-1 flex items-center gap-1">
                   <div
-                    className="h-2.5 w-2.5 shrink-0 rounded-full"
+                    className="h-2 w-2 shrink-0 rounded-full"
                     style={{ backgroundColor: dominant.color }}
                   />
-                  <strong className="text-slate-900">
-                    Dominant: {dominant.label} ({dominant.value}%)
+                  <strong className="text-slate-900 truncate">
+                    {dominant.label} {dominant.value}%
                   </strong>
                 </div>
-                <div className="mb-2.5 text-xs text-slate-500">
-                  {formatCoord(record.latitude)}, {formatCoord(record.longitude)}
-                  <br />
-                  {formatDate(record.createdAt)}
+                <div className="mb-1.5 text-[10px] text-slate-500">
+                  {formatCoord(record.latitude)}, {formatCoord(record.longitude)} · {formatDate(record.createdAt)}
                 </div>
-                <div className="flex flex-col gap-1">
-                  {WASTE_TYPES.map((t) => {
-                    const val = record[t.key];
-                    return (
-                      <div key={t.key} className="flex items-center gap-1.5">
-                        <span className="w-[52px] text-[11px] text-slate-500">{t.label}</span>
-                        <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-slate-100">
-                          <div
-                            className="h-full rounded-full"
-                            style={{ width: `${val ?? 0}%`, backgroundColor: t.color }}
-                          />
-                        </div>
-                        <span className="w-7 text-right text-[11px] font-semibold text-slate-700">
-                          {(val ?? 0)}%
-                        </span>
+                <div className="flex flex-col gap-0.5">
+                  {getTopWastes(record, 4).map((t) => (
+                    <div key={t.key} className="flex items-center gap-1">
+                      <span className="w-10 truncate text-[10px] text-slate-500">{t.label}</span>
+                      <div className="h-1 flex-1 min-w-0 overflow-hidden rounded-full bg-slate-100">
+                        <div
+                          className="h-full rounded-full"
+                          style={{ width: `${t.val}%`, backgroundColor: t.color }}
+                        />
                       </div>
-                    );
-                  })}
+                      <span className="w-6 shrink-0 text-right text-[10px] font-medium text-slate-700">{t.val}%</span>
+                    </div>
+                  ))}
                 </div>
                 {record.suggestedCleanup && (
-                  <div className="mt-2 max-h-20 overflow-y-auto rounded-md bg-emerald-50 px-2 py-1.5 text-[11px] text-emerald-800">
+                  <div className="mt-1 max-h-12 overflow-y-auto rounded bg-emerald-50 px-1.5 py-1 text-[10px] leading-tight text-emerald-800">
                     {record.suggestedCleanup}
                   </div>
                 )}
