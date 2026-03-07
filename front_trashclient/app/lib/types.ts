@@ -5,8 +5,27 @@ export interface TrashAnalysis {
   organicPercentage: number;
   metalPercentage: number;
   otherPercentage: number;
+  eWastePercentage: number;
+  hazardousPercentage: number;
+  specialTreatmentPercentage: number;
   description?: string;
   suggestedCleanup?: string;
+}
+
+export interface HeatmapBucket {
+  geohash: string;
+  latitude: number;
+  longitude: number;
+  count: number;
+  totalGlass: number;
+  totalPlastic: number;
+  totalPaper: number;
+  totalOrganic: number;
+  totalMetal: number;
+  totalOther: number;
+  totalEWaste: number;
+  totalHazardous: number;
+  totalSpecialTreatment: number;
 }
 
 export interface TrashRecord extends TrashAnalysis {

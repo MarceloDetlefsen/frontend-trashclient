@@ -1,7 +1,12 @@
 'use client';
 
-import { MapContainer, TileLayer, CircleMarker, Popup } from 'react-leaflet';
-import 'leaflet/dist/leaflet.css';
+import {
+  Map,
+  MapMarker,
+  MarkerContent,
+  MarkerPopup,
+  MapControls,
+} from '@/components/ui/map';
 import type { TrashRecord } from '@/app/lib/types';
 import { getDominantWaste, WASTE_TYPES, formatDate, formatCoord } from '@/app/lib/utils';
 
@@ -9,124 +14,108 @@ interface TrashMapProps {
   records: TrashRecord[];
 }
 
-export default function TrashMap({ records }: TrashMapProps) {
-  const center: [number, number] =
-    records.length > 0
-      ? [
-          records.reduce((s, r) => s + r.latitude, 0) / records.length,
-          records.reduce((s, r) => s + r.longitude, 0) / records.length,
-        ]
-      : [20, 0];
+const GUATEMALA_CENTER: [number, number] = [-90.23, 15.78];
 
-  const zoom = records.length > 0 ? 12 : 2;
+export default function TrashMap({ records }: TrashMapProps) {
+  const validRecords = records
+    .map((r) => ({
+      ...r,
+      latitude: Number(r.latitude),
+      longitude: Number(r.longitude),
+    }))
+    .filter(
+      (r) =>
+        !Number.isNaN(r.latitude) &&
+        !Number.isNaN(r.longitude) &&
+        r.latitude >= -90 &&
+        r.latitude <= 90 &&
+        r.longitude >= -180 &&
+        r.longitude <= 180
+    );
+
+  const center: [number, number] =
+    validRecords.length > 0
+      ? [
+          validRecords.reduce((s, r) => s + r.longitude, 0) / validRecords.length,
+          validRecords.reduce((s, r) => s + r.latitude, 0) / validRecords.length,
+        ]
+      : GUATEMALA_CENTER;
+
+  const zoom = validRecords.length > 0 ? 8 : 6;
 
   return (
-    <MapContainer
-      center={center}
-      zoom={zoom}
-      style={{ height: '100%', width: '100%', borderRadius: '0.75rem' }}
-    >
-      <TileLayer
-        attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-        url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-      />
-      {records.map((record) => {
+    <div className="relative h-full w-full">
+      <Map
+        className="rounded-xl"
+        theme="light"
+        viewport={{ center, zoom }}
+      >
+        <MapControls showZoom showLocate position="bottom-right" />
+        {validRecords.map((record) => {
         const dominant = getDominantWaste(record);
         return (
-          <CircleMarker
+          <MapMarker
             key={record.id}
-            center={[record.latitude, record.longitude]}
-            radius={10}
-            pathOptions={{
-              fillColor: dominant.color,
-              fillOpacity: 0.85,
-              color: 'white',
-              weight: 2,
-            }}
+            longitude={record.longitude}
+            latitude={record.latitude}
           >
-            <Popup minWidth={220}>
-              <div style={{ fontFamily: 'system-ui, sans-serif', fontSize: '13px' }}>
-                <div
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '6px',
-                    marginBottom: '8px',
-                  }}
-                >
+            <MarkerContent>
+              <div
+                className="h-6 w-6 rounded-full border-2 border-white shadow-lg"
+                style={{ backgroundColor: dominant.color }}
+              />
+            </MarkerContent>
+            <MarkerPopup closeButton anchor="bottom">
+              <div className="min-w-[200px] font-sans text-[13px]">
+                <div className="mb-2 flex items-center gap-1.5">
                   <div
-                    style={{
-                      width: '10px',
-                      height: '10px',
-                      borderRadius: '50%',
-                      backgroundColor: dominant.color,
-                      flexShrink: 0,
-                    }}
+                    className="h-2.5 w-2.5 shrink-0 rounded-full"
+                    style={{ backgroundColor: dominant.color }}
                   />
-                  <strong style={{ color: '#0f172a' }}>
+                  <strong className="text-slate-900">
                     Dominant: {dominant.label} ({dominant.value}%)
                   </strong>
                 </div>
-                <div style={{ color: '#64748b', marginBottom: '10px', fontSize: '12px' }}>
+                <div className="mb-2.5 text-xs text-slate-500">
                   {formatCoord(record.latitude)}, {formatCoord(record.longitude)}
                   <br />
                   {formatDate(record.createdAt)}
                 </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                <div className="flex flex-col gap-1">
                   {WASTE_TYPES.map((t) => {
                     const val = record[t.key];
                     return (
-                      <div
-                        key={t.key}
-                        style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
-                      >
-                        <span style={{ width: '52px', color: '#64748b', fontSize: '11px' }}>
-                          {t.label}
-                        </span>
-                        <div
-                          style={{
-                            flex: 1,
-                            height: '6px',
-                            background: '#f1f5f9',
-                            borderRadius: '9999px',
-                            overflow: 'hidden',
-                          }}
-                        >
+                      <div key={t.key} className="flex items-center gap-1.5">
+                        <span className="w-[52px] text-[11px] text-slate-500">{t.label}</span>
+                        <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-slate-100">
                           <div
-                            style={{
-                              width: `${val}%`,
-                              height: '100%',
-                              background: t.color,
-                              borderRadius: '9999px',
-                            }}
+                            className="h-full rounded-full"
+                            style={{ width: `${val ?? 0}%`, backgroundColor: t.color }}
                           />
                         </div>
-                        <span style={{ width: '28px', textAlign: 'right', fontSize: '11px', fontWeight: 600, color: '#334155' }}>
-                          {val}%
+                        <span className="w-7 text-right text-[11px] font-semibold text-slate-700">
+                          {(val ?? 0)}%
                         </span>
                       </div>
                     );
                   })}
                 </div>
                 {record.suggestedCleanup && (
-                  <div
-                    style={{
-                      marginTop: '8px',
-                      padding: '6px 8px',
-                      background: '#f0fdf4',
-                      borderRadius: '6px',
-                      color: '#166534',
-                      fontSize: '11px',
-                    }}
-                  >
+                  <div className="mt-2 max-h-20 overflow-y-auto rounded-md bg-emerald-50 px-2 py-1.5 text-[11px] text-emerald-800">
                     {record.suggestedCleanup}
                   </div>
                 )}
               </div>
-            </Popup>
-          </CircleMarker>
+            </MarkerPopup>
+          </MapMarker>
         );
       })}
-    </MapContainer>
+      </Map>
+      {validRecords.length === 0 && records.length > 0 && (
+        <div className="absolute bottom-2 left-1/2 -translate-x-1/2 rounded bg-amber-100 px-3 py-1.5 text-xs text-amber-800">
+          {records.length} record(s) have invalid coordinates and are not shown
+        </div>
+      )}
+    </div>
   );
 }

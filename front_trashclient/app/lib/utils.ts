@@ -8,6 +8,9 @@ export type WasteKey = keyof Pick<
   | 'organicPercentage'
   | 'metalPercentage'
   | 'otherPercentage'
+  | 'eWastePercentage'
+  | 'hazardousPercentage'
+  | 'specialTreatmentPercentage'
 >;
 
 export interface WasteType {
@@ -23,6 +26,9 @@ export const WASTE_TYPES: WasteType[] = [
   { key: 'organicPercentage', label: 'Organic', color: '#22c55e' },
   { key: 'metalPercentage', label: 'Metal', color: '#94a3b8' },
   { key: 'otherPercentage', label: 'Other', color: '#a855f7' },
+  { key: 'eWastePercentage', label: 'E-Waste', color: '#6366f1' },
+  { key: 'hazardousPercentage', label: 'Hazardous', color: '#ef4444' },
+  { key: 'specialTreatmentPercentage', label: 'Special', color: '#8b5cf6' },
 ];
 
 export interface DominantWaste {

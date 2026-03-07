@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, type DragEvent, type ChangeEvent } from 'react';
+import { useState, useRef, useEffect, type DragEvent, type ChangeEvent } from 'react';
 import Link from 'next/link';
 import { analyzeImage } from '@/app/lib/api';
 import type { TrashAnalysis } from '@/app/lib/types';
@@ -13,7 +13,30 @@ export default function UploadPage() {
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [latitude, setLatitude] = useState('');
   const [longitude, setLongitude] = useState('');
+  const [isGettingLocation, setIsGettingLocation] = useState(true);
+  const [locationError, setLocationError] = useState<string | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
+
+  useEffect(() => {
+    if (!navigator.geolocation) {
+      setLocationError('Geolocation is not supported by your browser.');
+      setIsGettingLocation(false);
+      return;
+    }
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        setLatitude(pos.coords.latitude.toFixed(6));
+        setLongitude(pos.coords.longitude.toFixed(6));
+        setLocationError(null);
+        setIsGettingLocation(false);
+      },
+      (err) => {
+        setLocationError(err.message === 'User denied Geolocation' ? 'Location permission denied. Enter coordinates manually.' : 'Could not get location.');
+        setIsGettingLocation(false);
+      },
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+    );
+  }, []);
   const [result, setResult] = useState<TrashAnalysis | null>(null);
   const [error, setError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -51,6 +74,12 @@ export default function UploadPage() {
 
   const handleAnalyze = async () => {
     if (!selectedFile) return;
+    const lat = Number(latitude.trim());
+    const lng = Number(longitude.trim());
+    if (Number.isNaN(lat) || Number.isNaN(lng)) {
+      setError('Latitude and longitude are required.');
+      return;
+    }
     setIsAnalyzing(true);
     setError(null);
     setResult(null);
@@ -58,8 +87,8 @@ export default function UploadPage() {
     try {
       const formData = new FormData();
       formData.append('image', selectedFile);
-      if (latitude.trim()) formData.append('latitude', latitude.trim());
-      if (longitude.trim()) formData.append('longitude', longitude.trim());
+      formData.append('latitude', latitude.trim());
+      formData.append('longitude', longitude.trim());
 
       const data = await analyzeImage(formData);
       setResult(data.trash);
@@ -75,8 +104,24 @@ export default function UploadPage() {
     setPreviewUrl(null);
     setResult(null);
     setError(null);
-    setLatitude('');
-    setLongitude('');
+    if (navigator.geolocation) {
+      setIsGettingLocation(true);
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          setLatitude(pos.coords.latitude.toFixed(6));
+          setLongitude(pos.coords.longitude.toFixed(6));
+          setLocationError(null);
+          setIsGettingLocation(false);
+        },
+        () => {
+          setIsGettingLocation(false);
+        },
+        { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+      );
+    } else {
+      setLatitude('');
+      setLongitude('');
+    }
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
@@ -178,18 +223,31 @@ export default function UploadPage() {
           {/* Coordinates */}
           <div className="mt-5">
             <p className="text-xs font-semibold uppercase tracking-wider text-slate-400 mb-3">
-              Location (optional)
+              Location <span className="font-normal text-slate-300">(detected from device)</span>
             </p>
+            {isGettingLocation && (
+              <p className="text-xs text-slate-500 mb-2 flex items-center gap-1.5">
+                <svg className="w-3.5 h-3.5 animate-spin" viewBox="0 0 24 24" fill="none">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                </svg>
+                Getting your position…
+              </p>
+            )}
+            {locationError && (
+              <p className="text-xs text-amber-600 mb-2">{locationError}</p>
+            )}
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className="block text-xs text-slate-500 mb-1">Latitude</label>
                 <input
                   type="number"
                   step="any"
-                  placeholder="e.g. 48.8566"
+                  placeholder="e.g. 15.7833"
                   value={latitude}
                   onChange={(e) => setLatitude(e.target.value)}
-                  className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent placeholder:text-slate-300"
+                  readOnly={isGettingLocation}
+                  className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent placeholder:text-slate-300 disabled:bg-slate-50 disabled:text-slate-500"
                 />
               </div>
               <div>
@@ -197,10 +255,11 @@ export default function UploadPage() {
                 <input
                   type="number"
                   step="any"
-                  placeholder="e.g. 2.3522"
+                  placeholder="e.g. -90.2308"
                   value={longitude}
                   onChange={(e) => setLongitude(e.target.value)}
-                  className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent placeholder:text-slate-300"
+                  readOnly={isGettingLocation}
+                  className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent placeholder:text-slate-300 disabled:bg-slate-50 disabled:text-slate-500"
                 />
               </div>
             </div>
@@ -221,7 +280,7 @@ export default function UploadPage() {
           {/* Submit */}
           <button
             onClick={handleAnalyze}
-            disabled={!selectedFile || isAnalyzing}
+            disabled={!selectedFile || isAnalyzing || isGettingLocation || !latitude.trim() || !longitude.trim()}
             className="mt-5 w-full flex items-center justify-center gap-2 px-5 py-3 bg-emerald-600 hover:bg-emerald-700 disabled:bg-slate-200 disabled:text-slate-400 text-white text-sm font-semibold rounded-lg transition-colors"
           >
             {isAnalyzing ? (

@@ -1,6 +1,6 @@
 import type { TrashRecord, TrashAnalysis } from './types';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3000';
+const API_URL = process.env.NEXT_PUBLIC_API_URL ?? '';
 
 export async function getTrashRecords(): Promise<TrashRecord[]> {
   const res = await fetch(`${API_URL}/api/trash`, {
@@ -14,7 +14,7 @@ export async function getTrashRecords(): Promise<TrashRecord[]> {
 
 export async function analyzeImage(
   formData: FormData
-): Promise<{ trash: TrashAnalysis }> {
+): Promise<{ trash: TrashAnalysis; id?: string }> {
   const res = await fetch(`${API_URL}/api/analyze-image`, {
     method: 'POST',
     body: formData,
@@ -25,5 +25,5 @@ export async function analyzeImage(
       .catch(() => ({ error: 'Unknown error' }))) as { error?: string };
     throw new Error(json.error ?? 'Image analysis failed');
   }
-  return res.json() as Promise<{ trash: TrashAnalysis }>;
+  return res.json() as Promise<{ trash: TrashAnalysis; id?: string }>;
 }
